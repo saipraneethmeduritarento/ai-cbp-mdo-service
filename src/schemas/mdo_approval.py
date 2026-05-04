@@ -112,6 +112,9 @@ class PaginationMetadata(BaseModel):
     current_page: int
     page_size: int
     total_items: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
 
 
 class ApprovalRequestFilters(BaseModel):
