@@ -126,7 +126,7 @@ class PaginatedApprovalRequestsResponse(BaseModel):
     """Paginated response for approval requests"""
     items: List[ApprovalRequestListItem]
     pagination: PaginationMetadata
-    # filters: ApprovalRequestFilters
+    filters: ApprovalRequestFilters
 
 
 class ApprovalActionResponse(BaseModel):
