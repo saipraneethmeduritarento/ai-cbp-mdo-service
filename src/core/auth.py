@@ -11,7 +11,12 @@ from .logger import logger
 
 CERTS_URL = f"{settings.KB_BASE_URL}/auth/realms/sunbird/protocol/openid-connect/certs"
 EXPECTED_ISSUER = f"{settings.KB_BASE_URL}/auth/realms/sunbird"
+REALM_URL = f"{settings.KB_BASE_URL}/auth/realms/{settings.SUNBIRD_SSO_REALM}"
 
+def check_iss(iss: str) -> bool:
+    """Validate the token issuer against the configured SSO realm URL."""
+    realm_url = REALM_URL.lower()
+    return realm_url.lower() == iss.lower()
 
 # Registers as a Bearer security scheme → shows as the lock icon in Swagger UI
 _bearer_scheme = HTTPBearer()
@@ -44,18 +49,18 @@ def require_cbp_creator(
         unverified_header = jwt.get_unverified_header(token)
         logger.debug(f"Token header: {unverified_header}")
     except JWTError:
-        logger.error(f"Failed to parse token header")
+        logger.exception(f"Failed to parse token header")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: could not parse header.",
+            detail="Invalid token.",
         )
 
     kid = unverified_header.get("kid")
     if not kid:
-        logger.error(f"Token header missing 'kid'. Header: {unverified_header}")
+        logger.exception(f"Token header missing 'kid'. Header: {unverified_header}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token: missing kid in header.",
+            detail="Invalid token.",
         )
 
     # Fetch public key (cached by kid)
@@ -63,7 +68,7 @@ def require_cbp_creator(
     if not public_key:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token validation failed: public key not found.",
+            detail="Token validation failed.",
         )
 
     # Validate signature, expiry, and issuer
@@ -84,6 +89,14 @@ def require_cbp_creator(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Token validation failed: {str(e)}",
+        )
+
+    # Validate issuer against SSO config
+    if not check_iss(decoded.get("iss", "")):
+        logger.exception(f"Invalid token issuer: {decoded.get('iss')}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token.",
         )
 
     # Enforce required roles

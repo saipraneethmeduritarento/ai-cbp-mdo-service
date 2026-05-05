@@ -26,6 +26,8 @@ class Settings(BaseSettings):
 
     KB_BASE_URL: str = "https://portal.dev.karmayogibharat.net"
     KB_AUTH_TOKEN: str = ""
+    
+    SUNBIRD_SSO_REALM: str = "sunbird"
 
     DATABASE_URL: str
 
