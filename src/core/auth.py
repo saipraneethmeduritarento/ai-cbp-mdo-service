@@ -1,8 +1,8 @@
 from functools import lru_cache
 
 import requests
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi import Depends, HTTPException, Security, status
+from fastapi.security import APIKeyHeader
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 
@@ -18,8 +18,8 @@ def check_iss(iss: str) -> bool:
     realm_url = REALM_URL.lower()
     return realm_url.lower() == iss.lower()
 
-# Registers as a Bearer security scheme → shows as the lock icon in Swagger UI
-_bearer_scheme = HTTPBearer()
+# Custom header scheme for iGOT token
+_token_header = APIKeyHeader(name="x-authenticated-user-token", auto_error=False)
 
 
 @lru_cache(maxsize=10)
@@ -34,7 +34,7 @@ def _get_public_key(kid: str) -> dict:
 
 
 def require_cbp_creator(
-    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+    token: str = Security(_token_header),
 ) -> tuple[str, str]:
     """
     FastAPI dependency that validates an iGOT JWT and enforces the cbp_creator role.
@@ -42,7 +42,7 @@ def require_cbp_creator(
     downstream APIs (e.g. CBP plan create).
     Raises HTTP 401 for invalid/expired tokens and HTTP 403 for missing role.
     """
-    token = credentials.credentials
+    # token is read directly from X-Authenticated-User-Token header
 
     # Extract kid from unverified header
     try:
