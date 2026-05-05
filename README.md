@@ -152,6 +152,10 @@ REQUIRED_ROLES=["MDO_ADMIN", "MDO_LEADER"]
 # iGOT / Karmayogi Bharat portal
 KB_BASE_URL="https://portal.dev.karmayogibharat.net"
 KB_AUTH_TOKEN="your-kb-auth-token-here"
+
+# SSO Configuration
+SUNBIRD_SSO_REALM="sunbird"
+SUNBIRD_SSO_URL="https://portal.dev.karmayogibharat.net/auth/"
 ```
 
 > **Note**: `KB_BASE_URL` and `KB_AUTH_TOKEN` are required for the approval (publish) flow. Without them, the iGOT Create and Publish API calls will fail.
