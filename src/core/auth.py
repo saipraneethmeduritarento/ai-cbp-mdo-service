@@ -11,7 +11,7 @@ from .logger import logger
 
 CERTS_URL = f"{settings.KB_BASE_URL}/auth/realms/sunbird/protocol/openid-connect/certs"
 EXPECTED_ISSUER = f"{settings.KB_BASE_URL}/auth/realms/sunbird"
-REALM_URL = f"{settings.KB_BASE_URL}/auth/realms/{settings.SUNBIRD_SSO_REALM}"
+REALM_URL = f"{settings.SUNBIRD_SSO_URL}realms/{settings.SUNBIRD_SSO_REALM}"
 
 def check_iss(iss: str) -> bool:
     """Validate the token issuer against the configured SSO realm URL."""

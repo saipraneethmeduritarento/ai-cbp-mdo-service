@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     KB_AUTH_TOKEN: str = ""
     
     SUNBIRD_SSO_REALM: str = "sunbird"
+    SUNBIRD_SSO_URL: str = ""
 
     DATABASE_URL: str
 
