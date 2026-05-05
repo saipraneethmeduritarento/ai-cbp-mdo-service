@@ -22,10 +22,13 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     APP_ROOT_PATH: str = ""
 
-    REQUIRED_ROLE: str = "PUBLIC" # set "cbp_creator" for production
+    REQUIRED_ROLES: list[str] = ["MDO_ADMIN", "MDO_LEADER"]
 
     KB_BASE_URL: str = "https://portal.dev.karmayogibharat.net"
     KB_AUTH_TOKEN: str = ""
+    
+    SUNBIRD_SSO_REALM: str = "sunbird"
+    SUNBIRD_SSO_URL: str = ""
 
     DATABASE_URL: str
 

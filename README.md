@@ -13,7 +13,7 @@ A FastAPI microservice that powers the **MDO-side approval workflow** for CBP (C
 
 ## Table of Contents
 
-- [MDO Approval System](#mdo-approval-system)
+- [AI CBP MDO Service](#ai-cbp-mdo-service)
   - [Table of Contents](#table-of-contents)
   - [Project Overview](#project-overview)
   - [Project Structure](#project-structure)
@@ -147,11 +147,15 @@ DATABASE_URL="postgresql+asyncpg://user:password@localhost:5432/dbname"
 
 # Role required to access MDO endpoints
 # Default: PUBLIC — set to cbp_creator in staging/production
-REQUIRED_ROLE="cbp_creator"
+REQUIRED_ROLES=["MDO_ADMIN", "MDO_LEADER"]
 
 # iGOT / Karmayogi Bharat portal
 KB_BASE_URL="https://portal.dev.karmayogibharat.net"
 KB_AUTH_TOKEN="your-kb-auth-token-here"
+
+# SSO Configuration
+SUNBIRD_SSO_REALM="sunbird"
+SUNBIRD_SSO_URL="https://portal.dev.karmayogibharat.net/auth/"
 ```
 
 > **Note**: `KB_BASE_URL` and `KB_AUTH_TOKEN` are required for the approval (publish) flow. Without them, the iGOT Create and Publish API calls will fail.
