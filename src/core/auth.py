@@ -86,12 +86,12 @@ def require_cbp_creator(
             detail=f"Token validation failed: {str(e)}",
         )
 
-    # Enforce required role
+    # Enforce required roles
     user_roles = decoded.get("user_roles", [])
-    if settings.REQUIRED_ROLE not in user_roles:
+    if not any(role in user_roles for role in settings.REQUIRED_ROLES):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Access denied: '{settings.REQUIRED_ROLE}' role required.",
+            detail="You do not have the required role to make this request.",
         )
 
     # Extract the actual user ID from the sub claim and return with token
