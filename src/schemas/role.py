@@ -11,10 +11,6 @@ class RoleBase(BaseModel):
     permissions: Optional[Dict[str, Any]] = Field(default_factory=dict)
     is_active: bool = Field(default=True)
 
-class RoleCreate(RoleBase):
-    """Schema for creating a role"""
-    pass
-
 class RoleUpdate(BaseModel):
     """Schema for updating a role"""
     role_name: Optional[str] = Field(None, min_length=1, max_length=100)
