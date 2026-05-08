@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ...core.auth import require_cbp_creator
 from ...core.database import get_db_session
 from ...core.logger import logger
-from ...crud.designation_approval import crud_designation_approval
+from ...controller.designation_approval import designation_approval_controller
 from ...schemas.designation_approval import (
     ApproveDesignationBody,
     RejectDesignationBody,
@@ -39,7 +39,7 @@ async def list_designation_approvals(
     Supports search and filtering by status and date range.
     """
     try:
-        items, total_count = await crud_designation_approval.list_designation_approvals(
+        items, total_count = await designation_approval_controller.list_approvals(
             db=db,
             page=page,
             page_size=page_size,
@@ -76,7 +76,7 @@ async def approve_designation(
     Only PENDING records will be updated.
     """
     try:
-        success = await crud_designation_approval.approve(
+        success = await designation_approval_controller.approve(
             db=db,
             record_id=body.id,
         )
@@ -86,8 +86,6 @@ async def approve_designation(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Designation approval not found or already processed.",
             )
-
-        logger.info(f"Approved designation approval: {body.id}")
 
         return DesignationApprovalActionResponse(
             message="Successfully approved",
@@ -116,7 +114,7 @@ async def reject_designation(
     Only PENDING records will be updated.
     """
     try:
-        success = await crud_designation_approval.reject(
+        success = await designation_approval_controller.reject(
             db=db,
             record_id=body.id,
             reviewer_comments=body.reviewer_comments,
@@ -127,8 +125,6 @@ async def reject_designation(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Designation approval not found or already processed.",
             )
-
-        logger.info(f"Rejected designation approval: {body.id}")
 
         return DesignationApprovalActionResponse(
             message="Successfully rejected",
