@@ -9,6 +9,8 @@ from .core.logger import logger
 
 # Import all models to ensure they're registered with SQLAlchemy
 from .models import mdo_approval
+from .models import designation_approval
+from .models import user
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
