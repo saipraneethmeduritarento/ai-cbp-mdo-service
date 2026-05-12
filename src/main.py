@@ -16,12 +16,18 @@ from .models import user
 async def lifespan(app: FastAPI):
     logger.info("✅ Starting up...")
     
-    sessionmanager.init(settings.DATABASE_URL)
+    try:
+        # Create database tables
+        logger.info("🔧 Initializing database...")
+        sessionmanager.init(settings.DATABASE_URL)
+        async with sessionmanager.connect() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("✅ Database initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        raise e  # Re-raise the exception to prevent the app from starting
     
-    logger.info("--- Creating Tables ---")
-    async with sessionmanager.connect() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    logger.info("✅ Database tables ready")
+    logger.info("✅ Application startup complete")
     
     yield
     # On shutdown, dispose of the connection pool
