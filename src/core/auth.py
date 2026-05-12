@@ -77,8 +77,8 @@ def require_cbp_creator(
             token,
             public_key,
             algorithms=["RS256"],
-            issuer=EXPECTED_ISSUER,
-            options={"verify_aud": False},
+            # issuer=EXPECTED_ISSUER,
+            options={"require": ["exp", "sub"], "verify_aud": False}
         )
     except ExpiredSignatureError:
         raise HTTPException(
