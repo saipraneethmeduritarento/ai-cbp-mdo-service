@@ -74,7 +74,7 @@ async def get_approval_requests(
         )
 
 
-@router.get("/approval-requests/{request_id}", response_model=ApprovalRequestDetail)
+@router.get("/approval-requests/read/{request_id}", response_model=ApprovalRequestDetail)
 async def get_approval_request_detail(
     request_id: UUID,
     db: AsyncSession = Depends(get_db_session),
