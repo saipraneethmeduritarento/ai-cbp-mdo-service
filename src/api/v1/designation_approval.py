@@ -20,10 +20,10 @@ from ...schemas.designation_approval import (
     PaginationMetadata,
 )
 
-router = APIRouter(prefix="/designation-approval", tags=["Designation Approval"])
+router = APIRouter(prefix="/designation", tags=["SPV Designation Approval"])
 
 
-@router.get("/list", response_model=PaginatedDesignationApprovalResponse)
+@router.get("/approval-requests/list", response_model=PaginatedDesignationApprovalResponse)
 async def list_designation_approvals(
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page"),
@@ -65,7 +65,7 @@ async def list_designation_approvals(
         )
 
 
-@router.post("/approve", response_model=DesignationApprovalActionResponse)
+@router.post("/approval-requests/approve", response_model=DesignationApprovalActionResponse)
 async def approve_designation(
     body: ApproveDesignationBody,
     db: AsyncSession = Depends(get_db_session),
@@ -103,7 +103,7 @@ async def approve_designation(
         )
 
 
-@router.post("/reject", response_model=DesignationApprovalActionResponse)
+@router.post("/approval-requests/reject", response_model=DesignationApprovalActionResponse)
 async def reject_designation(
     body: RejectDesignationBody,
     db: AsyncSession = Depends(get_db_session),
