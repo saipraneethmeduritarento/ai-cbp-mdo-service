@@ -78,7 +78,7 @@ async def call_igot_create(
         "accept": "application/json",
         "org": org,
         "rootorg": rootorg,
-        "Authorization": f"bearer {settings.KB_AUTH_TOKEN}",
+        "Authorization": f"{settings.KB_AUTH_TOKEN}",
         "x-authenticated-user-token": token,
         "x-authenticated-user-orgid": org_id,
     }
@@ -133,7 +133,7 @@ async def call_igot_publish(
         "accept": "application/json",
         "org": org,
         "rootorg": rootorg,
-        "Authorization": f"bearer {settings.KB_AUTH_TOKEN}",
+        "Authorization": f"{settings.KB_AUTH_TOKEN}",
         "x-authenticated-user-token": token,
         "x-authenticated-user-orgid": org_id,
         "x-authenticated-user-roles": ""
