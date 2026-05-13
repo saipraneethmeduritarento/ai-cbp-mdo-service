@@ -103,7 +103,7 @@ class MDOApprovalController:
         # 3. Call iGOT create + publish APIs BEFORE any DB writes; raises HTTPException(502) on failure
         igot_cbp_plan_id_str = await call_igot_create(
             token=token,
-            org_id=request.state_center_id,
+            org_id=request.department_id if request.department_id else request.state_center_id,
             plan_name=plan_name,
             due_date=due_date,
             designations=designations,
@@ -113,7 +113,7 @@ class MDOApprovalController:
 
         await call_igot_publish(
             token=token,
-            org_id=request.state_center_id,
+            org_id=request.department_id if request.department_id else request.state_center_id,
             plan_id=igot_cbp_plan_id_str,
         )
 
