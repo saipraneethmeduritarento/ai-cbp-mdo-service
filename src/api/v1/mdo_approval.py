@@ -264,3 +264,49 @@ async def reject_approval_request_item(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to reject approval request item"
         )
+    
+
+# @router.post("/approval-requests/course/add")
+# async def add_course_to_approval_request(
+#     body: AddCourseBody,
+#     db: AsyncSession = Depends(get_db_session),
+#     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
+# ):
+#     """
+#     Add a course to an approval request.
+#     """
+#     mdo_id = auth[0]
+#     try:
+#         pass
+
+#     except HTTPException:
+#         raise
+#     except Exception:
+#         logger.exception("Error adding course to approval request")
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail="Failed to add course to approval request"
+#         )
+    
+# @router.post("/approval-requests/course/remove")
+# async def remove_course_from_approval_request(
+#     body: RemoveCourseBody,
+#     db: AsyncSession = Depends(get_db_session),
+#     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
+# ):
+#     """
+#     Remove a course from an approval request.
+#     """
+#     mdo_id = auth[0]
+#     try:
+#         pass
+
+#     except HTTPException:
+#         raise
+#     except Exception:
+#         logger.exception("Error removing course from approval request")
+#         raise HTTPException(
+#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+#             detail="Failed to remove course from approval request"
+#         )
+        
