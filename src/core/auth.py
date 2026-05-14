@@ -16,6 +16,7 @@ REALM_URL = f"{settings.SUNBIRD_SSO_URL}realms/{settings.SUNBIRD_SSO_REALM}"
 def check_iss(iss: str) -> bool:
     """Validate the token issuer against the configured SSO realm URL."""
     realm_url = REALM_URL.lower()
+    logger.info(f"Validating token issuer. Expected realm URL: {realm_url}, Token iss: {iss}")
     return realm_url.lower() == iss.lower()
 
 # Custom header scheme for iGOT token
