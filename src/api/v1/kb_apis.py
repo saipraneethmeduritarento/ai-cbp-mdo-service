@@ -18,7 +18,7 @@ router = APIRouter(
 def _get_headers() -> dict:
     return {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {settings.KB_AUTH_TOKEN}",
+        "Authorization": f"{settings.KB_AUTH_TOKEN}",
     }
 
 # iGOT Course Suggestion APIs
@@ -42,7 +42,7 @@ async def fetch_course_from_igot_platform(
                 json=body,
                 headers={
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {settings.KB_AUTH_TOKEN}"
+                    "Authorization": f"{settings.KB_AUTH_TOKEN}"
                 }
             )
             response.raise_for_status() # Raise an exception for bad status codes (4xx or 5xx)
