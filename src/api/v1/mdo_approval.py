@@ -315,9 +315,6 @@ async def update_approval_request_item(
 
         return {
             "message": "Item updated successfully",
-            "request_id": body.request_id,
-            "item_id": body.item_id,
-            "fields_updated": result["fields_updated"],  # type: ignore[index]
         }
 
     except HTTPException:
