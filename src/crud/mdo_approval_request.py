@@ -138,7 +138,7 @@ class CRUDMDOApprovalRequest:
             return None
         return request
 
-    async def persist_approval(
+    async def persist_approval_per_item(
         self,
         db: AsyncSession,
         request: ApprovalRequestRead,
@@ -146,18 +146,22 @@ class CRUDMDOApprovalRequest:
         mdo_id: str,
         plan_name: str,
         due_date: date,
-        igot_cbp_plan_id_str: str,
-    ) -> Optional[ApprovalRequestRead]:
+        item_results: list,
+    ) -> bool:
         """
-        Persist approval: update request status, create MdoApproval audit rows,
-        update item statuses. Caller must have already locked the row and
-        obtained igot_cbp_plan_id from the external API.
+        Persist per-item approval results. Each item that was successfully
+        published gets APPROVED status and its own igot_cbp_plan_id.
+        The parent request is marked APPROVED.
 
-        Returns the updated request.
+        item_results: list of dicts with keys: item_id, status, plan_id
         """
-        igot_cbp_plan_id = uuid.UUID(igot_cbp_plan_id_str)
+        now = datetime.now(timezone.utc)
+        due_dt = datetime.combine(due_date, datetime.min.time()).replace(tzinfo=timezone.utc)
 
-        # Update the approval request status
+        # Build a lookup from item_id -> result
+        result_map = {r["item_id"]: r for r in item_results}
+
+        # Update the approval request status to APPROVED
         await db.execute(
             update(ApprovalRequestRead)
             .where(
@@ -169,33 +173,51 @@ class CRUDMDOApprovalRequest:
             )
             .values(
                 status=ApprovalStatus.APPROVED,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=now,
             )
         )
 
-        # Create MdoApproval rows and update item statuses
-        due_dt = datetime.combine(due_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-
+        # Process each item based on its publish result
         for item in request.items:
-            db.add(
-                MdoApproval(
-                    approval_request_id=request_id,
-                    approval_request_item_id=item.id,
-                    plan_name=plan_name,
-                    due_date=due_dt,
-                    igot_cbp_plan_id=igot_cbp_plan_id,
-                    created_at=datetime.now(timezone.utc) if igot_cbp_plan_id else None,
+            item_result = result_map.get(str(item.id))
+            if item_result and item_result["status"] == "success":
+                igot_cbp_plan_id = uuid.UUID(item_result["plan_id"])
+                db.add(
+                    MdoApproval(
+                        approval_request_id=request_id,
+                        approval_request_item_id=item.id,
+                        plan_name=plan_name,
+                        due_date=due_dt,
+                        igot_cbp_plan_id=igot_cbp_plan_id,
+                        created_at=now,
+                    )
                 )
-            )
-            await db.execute(
-                update(ApprovalRequestItemRead)
-                .where(ApprovalRequestItemRead.id == item.id)
-                .values(status=ApprovalItemStatus.APPROVED)
-            )
+                await db.execute(
+                    update(ApprovalRequestItemRead)
+                    .where(ApprovalRequestItemRead.id == item.id)
+                    .values(status=ApprovalItemStatus.APPROVED)
+                )
+            # else:
+                # Item failed to publish - mark as APPROVED but without plan_id
+                # db.add(
+                #     MdoApproval(
+                #         approval_request_id=request_id,
+                #         approval_request_item_id=item.id,
+                #         plan_name=plan_name,
+                #         due_date=due_dt,
+                #         igot_cbp_plan_id=None,
+                #         created_at=None,
+                #     )
+                # )
+                # await db.execute(
+                #     update(ApprovalRequestItemRead)
+                #     .where(ApprovalRequestItemRead.id == item.id)
+                #     .values(status=ApprovalItemStatus.APPROVED)
+                # )
 
         await db.commit()
+        return True
 
-        return await self.get_by_request_id_and_mdo(db, request_id, mdo_id)
 
     async def reject_request(
         self,

@@ -129,13 +129,23 @@ class PaginatedApprovalRequestsResponse(BaseModel):
     # filters: ApprovalRequestFilters
 
 
+class ItemPublishResult(BaseModel):
+    """Result of publishing a single item"""
+    item_id: str
+    designation_name: str
+    status: str  # "success" or "failed"
+    plan_id: Optional[str] = None
+    error: Optional[str] = None
+
+
 class ApprovalActionResponse(BaseModel):
     """Response after approve action"""
     message: str
     request_status: str
     items_processed: int
-    item_ids: List[UUID]
-    igot_cbp_plan_id: str
+    items_succeeded: int
+    items_failed: int
+    results: List[ItemPublishResult]
 
 
 class RejectActionResponse(BaseModel):
