@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     SUNBIRD_SSO_URL: str = ""
 
     DATABASE_URL: str
+    
+    DEFAULT_RELEVANCY_SCORE: int = 90
 
 # Create a settings instance that can be imported by other modules
 settings = Settings()

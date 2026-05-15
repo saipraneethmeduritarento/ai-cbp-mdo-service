@@ -17,12 +17,15 @@ from ...schemas.mdo_approval import (
     ApproveRequestBody,
     RejectRequestBody,
     RejectItemBody,
+    UpdateItemBody,
+    AddCourseBody,
+    RemoveCourseBody,
     ApprovalActionResponse,
     ItemPublishResult,
     RejectActionResponse,
     PaginatedApprovalRequestsResponse,
     PaginationMetadata,
-    ApprovalRequestFilters
+    ApprovalRequestFilters,
 )
 
 router = APIRouter(
@@ -261,48 +264,199 @@ async def reject_approval_request_item(
             detail="Failed to reject approval request item"
         )
     
+@router.put("/approval-requests/items/update")
+async def update_approval_request_item(
+    body: UpdateItemBody,
+    db: AsyncSession = Depends(get_db_session),
+    auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
+):
+    """
+    Update role mapping fields on a specific approval request item.
+    """
+    mdo_id = auth[0]
+    try:
+        update_data = body.model_dump(exclude={"request_id", "item_id"}, exclude_unset=True)
+        result, error = await mdo_approval_controller.update_item(
+            db=db,
+            request_id=body.request_id,
+            item_id=body.item_id,
+            mdo_id=mdo_id,
+            update_data=update_data,
+        )
 
-# @router.post("/approval-requests/course/add")
-# async def add_course_to_approval_request(
-#     body: AddCourseBody,
-#     db: AsyncSession = Depends(get_db_session),
-#     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
-# ):
-#     """
-#     Add a course to an approval request.
-#     """
-#     mdo_id = auth[0]
-#     try:
-#         pass
+        if error == "not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request not found or access denied"
+            )
+        if error and error.startswith("invalid_status:"):
+            current_status = error.split(":", 1)[1]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot update item in request with status '{current_status}'. Must be 'pending'."
+            )
+        if error == "item_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request item not found"
+            )
+        if error == "item_rejected":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot update a rejected item"
+            )
+        if error == "no_fields_to_update":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No fields provided to update"
+            )
 
-#     except HTTPException:
-#         raise
-#     except Exception:
-#         logger.exception("Error adding course to approval request")
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail="Failed to add course to approval request"
-#         )
+        logger.info(f"Updated item {body.item_id} in request {body.request_id}")
+
+        return {
+            "message": "Item updated successfully",
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error updating approval request item")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update approval request item"
+        )
+
+
+@router.post("/approval-requests/course/add")
+async def add_course_to_approval_request(
+    body: AddCourseBody,
+    db: AsyncSession = Depends(get_db_session),
+    auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
+):
+    """
+    Add a course to an approval request.
+    """
+    mdo_id = auth[0]
+    try:
+        result, error = await mdo_approval_controller.add_course_to_item(
+            db=db,
+            request_id=body.request_id,
+            item_id=body.item_id,
+            mdo_id=mdo_id,
+            identifiers=body.identifiers,
+        )
+
+        if error == "not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request not found or access denied"
+            )
+        if error and error.startswith("invalid_status:"):
+            current_status = error.split(":", 1)[1]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot modify request with status '{current_status}'. Must be 'pending'."
+            )
+        if error == "item_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request item not found"
+            )
+        if error == "no_cbp_plan_data":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No CBP plan data available for this item"
+            )
+        if error == "course_already_exists":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="All provided courses already exist in the plan"
+            )
+        if error == "course_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No courses found for the provided identifiers"
+            )
+
+        logger.info(f"Added {result['count']} course(s) to item {body.item_id} in request {body.request_id}")  # type: ignore[index]
+
+        return {
+            "message": f"Successfully added {result['count']} course(s)",  # type: ignore[index]
+            "request_id": body.request_id,
+            "item_id": body.item_id,
+            "identifiers_added": result["identifiers_added"],  # type: ignore[index]
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error adding course to approval request")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to add course to approval request"
+        )
     
-# @router.post("/approval-requests/course/remove")
-# async def remove_course_from_approval_request(
-#     body: RemoveCourseBody,
-#     db: AsyncSession = Depends(get_db_session),
-#     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
-# ):
-#     """
-#     Remove a course from an approval request.
-#     """
-#     mdo_id = auth[0]
-#     try:
-#         pass
+@router.post("/approval-requests/course/remove")
+async def remove_course_from_approval_request(
+    body: RemoveCourseBody,
+    db: AsyncSession = Depends(get_db_session),
+    auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
+):
+    """
+    Remove a course from an approval request item's cbp_plan_data.
+    """
+    mdo_id = auth[0]
+    try:
+        result, error = await mdo_approval_controller.remove_course_from_item(
+            db=db,
+            request_id=body.request_id,
+            item_id=body.item_id,
+            mdo_id=mdo_id,
+            identifier=body.identifier,
+        )
 
-#     except HTTPException:
-#         raise
-#     except Exception:
-#         logger.exception("Error removing course from approval request")
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail="Failed to remove course from approval request"
-#         )
+        if error == "not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request not found or access denied"
+            )
+        if error and error.startswith("invalid_status:"):
+            current_status = error.split(":", 1)[1]
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot modify request with status '{current_status}'. Must be 'pending'."
+            )
+        if error == "item_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request item not found"
+            )
+        if error == "no_cbp_plan_data":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No CBP plan data available for this item"
+            )
+        if error == "course_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Course with identifier '{body.identifier}' not found in CBP plan data"
+            )
+
+        logger.info(f"Removed course {body.identifier} from item {body.item_id} in request {body.request_id}")
+
+        return {
+            "message": f"Successfully removed course '{body.identifier}'",
+            "request_id": body.request_id,
+            "item_id": body.item_id,
+            "identifier": body.identifier # type: ignore[index]
+        }
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error removing course from approval request")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove course from approval request"
+        )
         
