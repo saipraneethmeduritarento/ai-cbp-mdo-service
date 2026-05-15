@@ -18,6 +18,7 @@ from ...schemas.mdo_approval import (
     RejectRequestBody,
     RejectItemBody,
     ApprovalActionResponse,
+    ItemPublishResult,
     RejectActionResponse,
     PaginatedApprovalRequestsResponse,
     PaginationMetadata,
@@ -92,7 +93,7 @@ async def get_approval_request_detail(
         if not request:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Approval request not found or access denied"
+                detail="Approval request not found"
             )
 
         return ApprovalRequestDetail.model_validate(request)
@@ -119,7 +120,7 @@ async def publish_request(
     """
     mdo_id, token = auth
     try:
-        updated_request, igot_cbp_plan_id_str = await mdo_approval_controller.publish(
+        item_results = await mdo_approval_controller.publish(
             db=db,
             request_id=body.request_id,
             mdo_id=mdo_id,
@@ -128,26 +129,21 @@ async def publish_request(
             token=token,
         )
 
-        if updated_request is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Approval request not found, access denied, or not in PENDING status.",
-            )
-
-        items_processed = len(updated_request.items) if updated_request.items else 0
-        item_ids = [item.id for item in updated_request.items] if updated_request.items else []
+        items_processed = len(item_results)
+        items_succeeded = sum(1 for r in item_results if r["status"] == "success")
+        items_failed = sum(1 for r in item_results if r["status"] == "failed")
 
         logger.info(
-            f"Approved {items_processed} item(s) for request {body.request_id} | "
-            f"igot_cbp_plan_id={igot_cbp_plan_id_str}"
+            f"Published {items_succeeded}/{items_processed} item(s) for request {body.request_id}"
         )
 
         return ApprovalActionResponse(
-            message="CBP plan created successfully",
+            message=f"CBP plan published: {items_succeeded} succeeded, {items_failed} failed",
             request_status="approved",
             items_processed=items_processed,
-            item_ids=item_ids,
-            igot_cbp_plan_id=igot_cbp_plan_id_str,
+            items_succeeded=items_succeeded,
+            items_failed=items_failed,
+            results=[ItemPublishResult(**r) for r in item_results],
         )
 
     except HTTPException:

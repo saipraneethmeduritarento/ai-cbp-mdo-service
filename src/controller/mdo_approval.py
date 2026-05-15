@@ -6,13 +6,14 @@ import uuid
 from datetime import date
 from typing import List, Optional, Tuple
 
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.logger import logger
 from ..crud.mdo_approval_request import crud_mdo_approval_request
-from ..models.mdo_approval import ApprovalRequestRead
+from ..models.mdo_approval import ApprovalRequestRead, ApprovalRequestItemRead
+from ..schemas.comman import ApprovalItemStatus
 from ..services.igot_service import call_igot_create, call_igot_publish, extract_content_ids
-
 
 class MDOApprovalController:
     """
@@ -56,6 +57,83 @@ class MDOApprovalController:
             db=db, request_id=request_id, mdo_id=mdo_id
         )
 
+    async def _publish_single_item(
+        self,
+        item: ApprovalRequestItemRead,
+        token: str,
+        org_id: str,
+        plan_name: str,
+        due_date: date,
+    ) -> dict:
+        """
+        Attempt to create and publish a CBP plan for a single item.
+        Retries up to MAX_PUBLISH_RETRIES times on failure.
+
+        Returns a result dict with item_id, designation_name, status, and plan_id.
+        """
+        designation = item.igot_designation_name or item.designation_name
+        content_ids: List[str] = []
+        if item.cbp_plan_data:
+            content_ids = extract_content_ids(item.cbp_plan_data)
+
+        if not content_ids:
+            logger.warning(
+                f"No content IDs found for item {item.id} ({designation}). "
+                "cbp_plan_data may be empty or missing selected_courses."
+            )
+            return {
+                "item_id": str(item.id),
+                "designation_name": designation,
+                "status": "failed",
+                "plan_id": None,
+                "error": "No CBP Plan found for this item.",
+            }
+
+        try:
+            igot_cbp_plan_id_str = await call_igot_create(
+                token=token,
+                org_id=org_id,
+                plan_name=plan_name,
+                due_date=due_date,
+                designations=[designation],
+                content_ids=content_ids,
+                is_apar=False,
+            )
+
+            await call_igot_publish(
+                token=token,
+                org_id=org_id,
+                plan_id=igot_cbp_plan_id_str,
+            )
+
+            return {
+                "item_id": str(item.id),
+                "designation_name": designation,
+                "status": "success",
+                "plan_id": igot_cbp_plan_id_str,
+                "error": None,
+            }
+        except HTTPException as e:
+            last_error = e.detail
+            logger.warning(
+                f"Publish failed for item {item.id} "
+                f"({designation}): {e.detail}"
+            )
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(
+                f"Publish failed for item {item.id} "
+                f"({designation}): {e}"
+            )
+
+        return {
+            "item_id": str(item.id),
+            "designation_name": designation,
+            "status": "failed",
+            "plan_id": None,
+            "error": 'iGOT CBP plan creation/publish failed.',
+        }
+
     async def publish(
         self,
         db: AsyncSession,
@@ -64,71 +142,71 @@ class MDOApprovalController:
         plan_name: str,
         due_date: date,
         token: str,
-    ) -> Tuple[Optional[ApprovalRequestRead], str]:
+    ) -> Tuple[Optional[ApprovalRequestRead], List[dict]]:
         """
-        Approve and publish a pending approval request.
+        Approve and publish a pending approval request per-item.
 
-        Order of operations (fail-safe):
-          1. Lock + validate the request is PENDING  (CRUD)
-          2. Extract content IDs and designations     (Service)
-          3. Call CBP create API                       (Service) ← fails fast, no DB writes yet
-          4. Persist approval + audit trail            (CRUD)
+        Each item gets its own CBP plan (create + publish). Failed items are
+        retried up to MAX_PUBLISH_RETRIES times. Results are tracked per item.
+
+        Order of operations:
+          1. Lock + validate the request is PENDING
+          2. For each item: create + publish plan (with retry)
+          3. Persist successful items as APPROVED with their plan_id
+          4. Mark the request as APPROVED
 
         Returns:
-            (updated request, igot_cbp_plan_id) or (None, "") if not found/not PENDING
+            (updated request, item_results) where item_results contains per-item
+            status with item_id, designation_name, status, plan_id, and error.
         """
         # 1. Lock and fetch the request
         request = await crud_mdo_approval_request.get_pending_for_update(
             db=db, request_id=request_id, mdo_id=mdo_id
         )
         if not request:
-            return None, ""
-
-        # 2. Extract data for CBP API from items
-        designations = [
-            item.igot_designation_name or item.designation_name
-            for item in request.items
-        ]
-        content_ids: List[str] = []
-        for item in request.items:
-            if item.cbp_plan_data:
-                content_ids.extend(extract_content_ids(item.cbp_plan_data))
-
-        if not content_ids:
-            logger.warning(
-                f"No content IDs found for request {request_id}. "
-                "cbp_plan_data may be empty or missing selected_courses."
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request not found or not in PENDING status.",
             )
 
-        # 3. Call iGOT create + publish APIs BEFORE any DB writes; raises HTTPException(502) on failure
-        igot_cbp_plan_id_str = await call_igot_create(
-            token=token,
-            org_id=request.department_id if request.department_id else request.state_center_id,
-            plan_name=plan_name,
-            due_date=due_date,
-            designations=designations,
-            content_ids=content_ids,
-            is_apar=False,
-        )
+        org_id = request.department_id if request.department_id else request.state_center_id
 
-        await call_igot_publish(
-            token=token,
-            org_id=request.department_id if request.department_id else request.state_center_id,
-            plan_id=igot_cbp_plan_id_str,
-        )
+        # 2. Publish per item (only PENDING items)
+        item_results: List[dict] = []
+        for item in request.items:
+            if item.status != ApprovalItemStatus.PENDING:
+                continue
+            result = await self._publish_single_item(
+                item=item,
+                token=token,
+                org_id=org_id,
+                plan_name=plan_name,
+                due_date=due_date,
+            )
+            item_results.append(result)
 
-        # 4. Persist all DB changes (approve request, create audit rows, approve items)
-        updated = await crud_mdo_approval_request.persist_approval(
+        # 3. Persist successful items and approve the request
+        successful_items = [
+            r for r in item_results if r["status"] == "success"
+        ]
+
+        if not successful_items:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="All items failed to publish. Please try again later.",
+            )
+
+        await crud_mdo_approval_request.persist_approval_per_item(
             db=db,
             request=request,
             request_id=request_id,
             mdo_id=mdo_id,
             plan_name=plan_name,
             due_date=due_date,
-            igot_cbp_plan_id_str=igot_cbp_plan_id_str,
+            item_results=item_results,
         )
 
-        return updated, igot_cbp_plan_id_str
+        return item_results
 
     async def reject_request(
         self,
