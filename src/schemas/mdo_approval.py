@@ -2,7 +2,7 @@
 Pydantic schemas for MDO approval endpoints.
 """
 from datetime import datetime
-from typing import Optional, List, Union
+from typing import Any, Optional, List, Union
 from uuid import UUID
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 
@@ -53,6 +53,35 @@ class RejectItemBody(BaseModel):
     def validate_rejection_comment(cls, v: str) -> str:
         return _validate_rejection_comment(v)
 
+class AddCourseBody(BaseModel):
+    request_id: UUID = Field(...)
+    item_id: UUID = Field(...)
+    identifiers: List[str] = Field(..., min_length=1, description="List of course identifiers to add")
+
+
+class RemoveCourseBody(BaseModel):
+    """Request body for removing a course from an approval request item"""
+    request_id: UUID = Field(..., description="ID of the approval request")
+    item_id: UUID = Field(..., description="ID of the approval request item")
+    identifier: str = Field(..., min_length=1, description="Course identifier to remove")
+
+
+class CompetencyItem(BaseModel):
+    """Schema for a single competency entry."""
+    type: str = Field(..., description="Competency type")
+    theme: str = Field(..., description="Competency theme")
+    sub_theme: str = Field(..., description="Competency sub-theme")
+
+
+class UpdateItemBody(BaseModel):
+    """Request body for updating an approval request item's role mapping fields."""
+    request_id: UUID = Field(..., description="ID of the approval request")
+    item_id: UUID = Field(..., description="ID of the specific item to update")
+    designation_name: Optional[str] = Field(None, description="Designation name")
+    wing_division_section: Optional[str] = Field(None, description="Wing/division/section name")
+    role_responsibilities: Optional[list] = Field(None, description="Roles and responsibilities")
+    activities: Optional[list] = Field(None, description="Activities list")
+    competencies: Optional[List[CompetencyItem]] = Field(None, description="Competencies list")
 
 # Response schemas
 class ApprovalRequestItemSchema(BaseModel):

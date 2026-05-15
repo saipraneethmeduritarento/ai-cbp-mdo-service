@@ -4,7 +4,7 @@ Orchestrates CRUD operations and external service calls.
 """
 import uuid
 from datetime import date
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -248,6 +248,73 @@ class MDOApprovalController:
             item_id=item_id,
             mdo_id=mdo_id,
             comments=comments,
+        )
+        
+    async def add_course_to_item(
+        self,
+        db: AsyncSession,
+        request_id: uuid.UUID,
+        item_id: uuid.UUID,
+        mdo_id: str,
+        identifiers: List[str],
+    ) -> Tuple[Optional[dict[str, Any]], Optional[str]]:
+        """
+        Add course identifiers to an item's cbp_plan_data.
+
+        Returns:
+            (result_dict, error_message)
+        """
+        return await crud_mdo_approval_request.add_course_to_item(
+            db=db,
+            request_id=request_id,
+            item_id=item_id,
+            mdo_id=mdo_id,
+            identifiers=identifiers,
+        )
+        
+
+    async def remove_course_from_item(
+        self,
+        db: AsyncSession,
+        request_id: uuid.UUID,
+        item_id: uuid.UUID,
+        mdo_id: str,
+        identifier: str,
+    ) -> Tuple[Optional[dict[str, Any]], Optional[str]]:
+        """
+        Remove a course identifier from an item's cbp_plan_data.
+
+        Returns:
+            (result_dict, error_message)
+        """
+        return await crud_mdo_approval_request.remove_course_from_item(
+            db=db,
+            request_id=request_id,
+            item_id=item_id,
+            mdo_id=mdo_id,
+            identifier=identifier,
+        )
+
+    async def update_item(
+        self,
+        db: AsyncSession,
+        request_id: uuid.UUID,
+        item_id: uuid.UUID,
+        mdo_id: str,
+        update_data: dict,
+    ) -> Tuple[Optional[dict[str, Any]], Optional[str]]:
+        """
+        Update role mapping fields on a specific approval request item.
+
+        Returns:
+            (result_dict, error_message)
+        """
+        return await crud_mdo_approval_request.update_item(
+            db=db,
+            request_id=request_id,
+            item_id=item_id,
+            mdo_id=mdo_id,
+            update_data=update_data,
         )
 
 
