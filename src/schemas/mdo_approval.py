@@ -78,6 +78,7 @@ class UpdateItemBody(BaseModel):
     request_id: UUID = Field(..., description="ID of the approval request")
     item_id: UUID = Field(..., description="ID of the specific item to update")
     designation_name: Optional[str] = Field(None, description="Designation name")
+    igot_designation_id: Optional[str] = Field(None, description="iGOT designation ID")
     wing_division_section: Optional[str] = Field(None, description="Wing/division/section name")
     role_responsibilities: Optional[list] = Field(None, description="Roles and responsibilities")
     activities: Optional[list] = Field(None, description="Activities list")
