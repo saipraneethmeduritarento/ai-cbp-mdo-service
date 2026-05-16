@@ -326,7 +326,6 @@ async def update_approval_request_item(
             detail="Failed to update approval request item"
         )
 
-
 @router.post("/approval-requests/course/add")
 async def add_course_to_approval_request(
     body: AddCourseBody,
