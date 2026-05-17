@@ -185,6 +185,12 @@ class MDOApprovalController:
             )
             item_results.append(result)
 
+        if not item_results:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="No items in PENDING status to publish.",
+            )
+
         # 3. Persist successful items and approve the request
         successful_items = [
             r for r in item_results if r["status"] == "success"
