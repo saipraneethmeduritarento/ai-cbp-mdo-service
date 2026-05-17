@@ -4,7 +4,7 @@ Allows MDO admins to view, approve, and reject approval requests.
 """
 from typing import Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.auth import require_role
@@ -32,7 +32,6 @@ router = APIRouter(
     prefix="/mdo",
     tags=["MDO Approval"],
 )
-
 
 @router.get("/approval-requests/list", response_model=PaginatedApprovalRequestsResponse)
 async def get_approval_requests(
@@ -77,7 +76,6 @@ async def get_approval_requests(
             detail="Failed to fetch approval requests"
         )
 
-
 @router.get("/approval-requests/read/{request_id}", response_model=ApprovalRequestDetail)
 async def get_approval_request_detail(
     request_id: UUID,
@@ -110,10 +108,10 @@ async def get_approval_request_detail(
             detail="Failed to fetch approval request details"
         )
 
-
 @router.post("/approval-requests/publish", response_model=ApprovalActionResponse)
 async def publish_request(
     body: ApproveRequestBody,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
@@ -121,7 +119,7 @@ async def publish_request(
     Approve all items in an approval request, create a CBP plan via the
     external API, and persist the returned igot_cbp_plan_id against each MdoApproval row.
     """
-    mdo_id, token = auth
+    mdo_id, token, approver_name, *_ = auth
     try:
         item_results = await mdo_approval_controller.publish(
             db=db,
@@ -130,6 +128,9 @@ async def publish_request(
             plan_name=body.plan_name,
             due_date=body.due_date.date(),
             token=token,
+            approver_name=approver_name,
+            approver_id=mdo_id,
+            background_tasks=background_tasks,
         )
 
         items_processed = len(item_results)
@@ -158,23 +159,26 @@ async def publish_request(
             detail="Failed to publish request.",
         )
 
-
 @router.post("/approval-requests/reject", response_model=RejectActionResponse)
 async def reject_request(
     body: RejectRequestBody,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
     Reject all items in an approval request.
     """
-    mdo_id = auth[0]
+    mdo_id, token, rejector_name, *_ = auth
     try:
         updated_request, items_count = await mdo_approval_controller.reject_request(
             db=db,
             request_id=body.request_id,
             mdo_id=mdo_id,
             comments=body.rejection_comment,
+            rejector_name=rejector_name,
+            rejector_id=mdo_id,
+            background_tasks=background_tasks,
         )
 
         if updated_request is None:
@@ -202,7 +206,6 @@ async def reject_request(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to reject request"
         )
-
 
 @router.post("/approval-requests/items/reject")
 async def reject_approval_request_item(

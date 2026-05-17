@@ -13,6 +13,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 from ..models.designation_approval import DesignationApproval, DesignationApprovalStatus
 from ..models.user import User
+from ..core.database import sessionmanager
 
 
 class CRUDDesignationApproval:
@@ -123,6 +124,20 @@ class CRUDDesignationApproval:
         )
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_by_id(
+        self,
+        record_id: uuid.UUID,
+    ) -> Optional[DesignationApproval]:
+        """Fetch a designation approval by ID with user relationship."""
+        async with sessionmanager.session() as db:
+            stmt = (
+                select(DesignationApproval)
+                .options(selectinload(DesignationApproval.user))
+                .where(DesignationApproval.id == record_id)
+            )
+            result = await db.execute(stmt)
+            return result.scalar_one_or_none()
 
     async def approve(
         self,
