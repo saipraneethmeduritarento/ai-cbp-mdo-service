@@ -3,17 +3,19 @@ Controller for MDO approval workflows.
 Orchestrates CRUD operations and external service calls.
 """
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, List, Optional, Tuple
 
-from fastapi import HTTPException, status
+from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..core.database import sessionmanager
 from ..core.logger import logger
 from ..crud.mdo_approval_request import crud_mdo_approval_request
 from ..models.mdo_approval import ApprovalRequestRead, ApprovalRequestItemRead
 from ..schemas.comman import ApprovalItemStatus
 from ..services.igot_service import call_igot_create, call_igot_publish, extract_content_ids
+from ..services.notification_service import notification_service
 
 class MDOApprovalController:
     """
@@ -142,6 +144,9 @@ class MDOApprovalController:
         plan_name: str,
         due_date: date,
         token: str,
+        approver_name: str = "",
+        approver_id: str = "",
+        background_tasks: BackgroundTasks = None,
     ) -> Tuple[Optional[ApprovalRequestRead], List[dict]]:
         """
         Approve and publish a pending approval request per-item.
@@ -212,6 +217,13 @@ class MDOApprovalController:
             item_results=item_results,
         )
 
+        # Send approval email in background
+        if background_tasks:
+            background_tasks.add_task(
+                self._send_cbplan_status_email,
+                request, plan_name, "Approved", approver_name, approver_id, None
+            )
+
         return item_results
 
     async def reject_request(
@@ -220,6 +232,9 @@ class MDOApprovalController:
         request_id: uuid.UUID,
         mdo_id: str,
         comments: str,
+        rejector_name: str = "",
+        rejector_id: str = "",
+        background_tasks: BackgroundTasks = None,
     ) -> Tuple[Optional[ApprovalRequestRead], int]:
         """
         Reject entire approval request (all items).
@@ -227,12 +242,57 @@ class MDOApprovalController:
         Returns:
             (updated request, items_rejected_count) or (None, 0) if not found/not PENDING
         """
-        return await crud_mdo_approval_request.reject_request(
+        updated_request, items_count = await crud_mdo_approval_request.reject_request(
             db=db,
             request_id=request_id,
             mdo_id=mdo_id,
             comments=comments,
         )
+
+        # Send rejection email in background
+        if updated_request and background_tasks:
+            background_tasks.add_task(
+                self._send_cbplan_status_email,
+                updated_request, updated_request.request_name, "Rejected", rejector_name, rejector_id, comments
+            )
+
+        return updated_request, items_count
+
+    async def _send_cbplan_status_email(
+        self,
+        request: ApprovalRequestRead,
+        cbp_name: str,
+        email_status: str,
+        action_by_name: str,
+        action_by_id: str,
+        rejection_reason: Optional[str],
+    ) -> None:
+        """Send CBP plan status email notification in background."""
+        try:
+            from ..models.user import User
+            from sqlalchemy.future import select
+
+            async with sessionmanager.session() as db:
+                stmt = select(User).where(User.user_id == request.user_id)
+                result = await db.execute(stmt)
+                user = result.scalar_one_or_none()
+
+            if not user or not user.email:
+                logger.warning(f"Cannot send CBP status email: user email not found for request {request.id}")
+                return
+
+            action_date = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p")
+            await notification_service.send_cbplan_status_email(
+                to_email=user.email,
+                cbp_name=cbp_name,
+                status=email_status,
+                approver_name=action_by_name,
+                action_date=action_date,
+                rejection_reason=rejection_reason if rejection_reason else "N/A",
+                user_id=action_by_id,
+            )
+        except Exception:
+            logger.exception(f"Error sending CBP plan status email for request {request.id}")
 
     async def reject_single_item(
         self,

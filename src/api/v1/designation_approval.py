@@ -4,7 +4,7 @@ Allows SPV admins to view, approve, and reject designation approval requests
 submitted from the CBP portal.
 """
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ...core.auth import require_role
@@ -68,6 +68,7 @@ async def list_designation_approvals(
 @router.post("/approval-requests/approve", response_model=DesignationApprovalActionResponse)
 async def approve_designation(
     body: ApproveDesignationBody,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
     auth: tuple = Depends(require_role(['SPV_ADMIN'])),
 ):
@@ -76,9 +77,14 @@ async def approve_designation(
     Only PENDING records will be updated.
     """
     try:
+        user_id, token, approver_name, org = auth
+
         success = await designation_approval_controller.approve(
             db=db,
             record_id=body.id,
+            approver_name=approver_name,
+            approver_id=user_id,
+            background_tasks=background_tasks,
         )
 
         if not success:
@@ -106,6 +112,7 @@ async def approve_designation(
 @router.post("/approval-requests/reject", response_model=DesignationApprovalActionResponse)
 async def reject_designation(
     body: RejectDesignationBody,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db_session),
     auth: tuple = Depends(require_role(['SPV_ADMIN'])),
 ):
@@ -114,10 +121,15 @@ async def reject_designation(
     Only PENDING records will be updated.
     """
     try:
+        user_id, token, rejector_name, org = auth
+
         success = await designation_approval_controller.reject(
             db=db,
             record_id=body.id,
             reviewer_comments=body.reviewer_comments,
+            rejector_name=rejector_name,
+            rejector_id=user_id,
+            background_tasks=background_tasks,
         )
 
         if not success:

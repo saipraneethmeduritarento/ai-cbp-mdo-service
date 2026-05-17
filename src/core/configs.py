@@ -34,5 +34,8 @@ class Settings(BaseSettings):
     
     DEFAULT_RELEVANCY_SCORE: int = 90
 
+    NOTIFICATION_BASE_URL: str = ""
+    ENABLE_EMAIL_NOTIFICATION: bool = False
+
 # Create a settings instance that can be imported by other modules
 settings = Settings()

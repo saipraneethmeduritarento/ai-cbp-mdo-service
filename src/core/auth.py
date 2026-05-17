@@ -111,5 +111,7 @@ def require_role(
         # Extract the actual user ID from the sub claim and return with token
         raw_sub = decoded.get("sub", "")
         user_id = raw_sub.split(":")[-1]
-        return user_id, token
+        name = decoded.get("name", "")
+        org = decoded.get("org", "")
+        return user_id, token, name, org
     return role_checker
