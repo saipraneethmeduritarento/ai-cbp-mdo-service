@@ -13,6 +13,7 @@ COPY pyproject.toml* uv.lock* ./
 # Install dependencies using uv
 RUN uv sync --frozen --no-cache
 COPY ./src /app/src
+COPY ./templates /app/templates
  
 # Expose the Fastapi port (default: 8000)
 EXPOSE 8000
