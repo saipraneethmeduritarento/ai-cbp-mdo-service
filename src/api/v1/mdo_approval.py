@@ -15,6 +15,7 @@ from ...schemas.mdo_approval import (
     ApprovalRequestListItem,
     ApprovalRequestDetail,
     ApproveRequestBody,
+    RetryPublishItemBody,
     RejectRequestBody,
     RejectItemBody,
     UpdateItemBody,
@@ -159,6 +160,36 @@ async def publish_request(
             detail="Failed to publish request.",
         )
 
+@router.post("/approval-requests/publish/retry", response_model=ItemPublishResult)
+async def retry_publish_item(
+    body: RetryPublishItemBody,
+    db: AsyncSession = Depends(get_db_session),
+    auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
+):
+    """
+    Retry publishing a single failed item from an already-approved request.
+    """
+    mdo_id, token, *_ = auth
+    try:
+        result = await mdo_approval_controller.retry_publish_item(
+            db=db,
+            request_id=body.request_id,
+            item_id=body.item_id,
+            mdo_id=mdo_id,
+            token=token,
+        )
+
+        return ItemPublishResult(**result)
+
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Error in retry_publish_item")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retry publish item.",
+        )
+
 @router.post("/approval-requests/reject", response_model=RejectActionResponse)
 async def reject_request(
     body: RejectRequestBody,
@@ -242,10 +273,10 @@ async def reject_approval_request_item(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Approval request item not found"
             )
-        if error == "already_rejected":
+        if error == "item_not_pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Item is already rejected"
+                detail="Item is not in a pending state and cannot be rejected"
             )
 
         logger.info(f"Rejected item {body.item_id} from request {body.request_id}")
@@ -303,10 +334,10 @@ async def update_approval_request_item(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Approval request item not found"
             )
-        if error == "item_rejected":
+        if error == "item_not_pending":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot update a rejected item"
+                detail="Cannot update a non-pending item"
             )
         if error == "no_fields_to_update":
             raise HTTPException(
