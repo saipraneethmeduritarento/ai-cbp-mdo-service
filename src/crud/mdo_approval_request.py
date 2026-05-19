@@ -199,23 +199,23 @@ class CRUDMDOApprovalRequest:
                     .where(ApprovalRequestItemRead.id == item.id)
                     .values(status=ApprovalItemStatus.APPROVED)
                 )
-            # else:
+            else:
                 # Item failed to publish - mark as APPROVED but without plan_id
-                # db.add(
-                #     MdoApproval(
-                #         approval_request_id=request_id,
-                #         approval_request_item_id=item.id,
-                #         plan_name=plan_name,
-                #         due_date=due_dt,
-                #         igot_cbp_plan_id=None,
-                #         created_at=None,
-                #     )
-                # )
-                # await db.execute(
-                #     update(ApprovalRequestItemRead)
-                #     .where(ApprovalRequestItemRead.id == item.id)
-                #     .values(status=ApprovalItemStatus.APPROVED)
-                # )
+                db.add(
+                    MdoApproval(
+                        approval_request_id=request_id,
+                        approval_request_item_id=item.id,
+                        plan_name=plan_name,
+                        due_date=due_dt,
+                        igot_cbp_plan_id=None,
+                        created_at=None,
+                    )
+                )
+                await db.execute(
+                    update(ApprovalRequestItemRead)
+                    .where(ApprovalRequestItemRead.id == item.id)
+                    .values(status=ApprovalItemStatus.FAILED)
+                )
 
         await db.commit()
         return True
@@ -312,8 +312,8 @@ class CRUDMDOApprovalRequest:
         if not target_item:
             return None, "item_not_found"
 
-        if target_item.status == ApprovalItemStatus.REJECTED:
-            return None, "already_rejected"
+        if target_item.status != ApprovalStatus.PENDING:
+            return None, "item_not_pending"
 
         # Reject the item
         now = datetime.now(timezone.utc)
@@ -589,8 +589,8 @@ class CRUDMDOApprovalRequest:
         if not target_item:
             return None, "item_not_found"
 
-        if target_item.status == ApprovalItemStatus.REJECTED:
-            return None, "item_rejected"
+        if target_item.status != ApprovalStatus.PENDING:
+            return None, "item_not_pending"
 
         if not update_data:
             return None, "no_fields_to_update"
@@ -614,6 +614,75 @@ class CRUDMDOApprovalRequest:
             "item_id": str(item_id),
             "fields_updated": list(values.keys()),
         }, None
+
+    async def get_failed_item_for_retry(
+        self,
+        db: AsyncSession,
+        request_id: uuid.UUID,
+        item_id: uuid.UUID,
+        mdo_id: str,
+    ) -> Tuple[Optional[MdoApproval], Optional[ApprovalRequestItemRead]]:
+        """
+        Fetch the MdoApproval record and the FAILED item for retry publishing.
+        Returns (mdo_approval, item) or (None, None) if not found.
+        """
+        # Get the MdoApproval record (plan_name, due_date)
+        mdo_stmt = (
+            select(MdoApproval)
+            .where(
+                and_(
+                    MdoApproval.approval_request_id == request_id,
+                    MdoApproval.approval_request_item_id == item_id,
+                    MdoApproval.igot_cbp_plan_id.is_(None),
+                )
+            )
+        )
+        mdo_result = await db.execute(mdo_stmt)
+        mdo_approval = mdo_result.scalars().first()
+
+        if not mdo_approval:
+            return None, None
+
+        # Get the failed item directly
+        item_stmt = (
+            select(ApprovalRequestItemRead)
+            .where(
+                and_(
+                    ApprovalRequestItemRead.id == item_id,
+                    ApprovalRequestItemRead.approval_request_id == request_id,
+                    ApprovalRequestItemRead.status == ApprovalItemStatus.FAILED,
+                )
+            )
+        )
+        item_result = await db.execute(item_stmt)
+        item = item_result.scalars().first()
+
+        return mdo_approval, item
+
+    async def persist_retry_item_success(
+        self,
+        db: AsyncSession,
+        mdo_approval_id: uuid.UUID,
+        item_id: uuid.UUID,
+        igot_cbp_plan_id: str,
+    ) -> None:
+        """Update the existing MdoApproval record and item status on successful retry."""
+        now = datetime.now(timezone.utc)
+
+        await db.execute(
+            update(MdoApproval)
+            .where(MdoApproval.id == mdo_approval_id)
+            .values(
+                igot_cbp_plan_id=uuid.UUID(igot_cbp_plan_id),
+                created_at=now,
+            )
+        )
+        await db.execute(
+            update(ApprovalRequestItemRead)
+            .where(ApprovalRequestItemRead.id == item_id)
+            .values(status=ApprovalItemStatus.APPROVED)
+        )
+        await db.commit()
 
 
 crud_mdo_approval_request = CRUDMDOApprovalRequest()

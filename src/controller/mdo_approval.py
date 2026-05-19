@@ -383,5 +383,67 @@ class MDOApprovalController:
             update_data=update_data,
         )
 
+    async def retry_publish_item(
+        self,
+        db: AsyncSession,
+        request_id: uuid.UUID,
+        item_id: uuid.UUID,
+        mdo_id: str,
+        token: str,
+    ) -> dict:
+        """
+        Retry publishing a single failed item from an already-approved request.
+        Reads plan_name and due_date from the existing MdoApproval record.
+
+        Returns a result dict with item_id, designation_name, status, plan_id, and error.
+        """
+        mdo_approval_record, item = await crud_mdo_approval_request.get_failed_item_for_retry(
+            db=db, request_id=request_id, item_id=item_id, mdo_id=mdo_id
+        )
+
+        if not mdo_approval_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval record not found for this item.",
+            )
+
+        if not item:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Item not found or not in FAILED status.",
+            )
+
+        # Read org_id from the parent request
+        request = await crud_mdo_approval_request.get_by_request_id_and_mdo(
+            db=db, request_id=request_id, mdo_id=mdo_id
+        )
+        if not request:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Approval request not found.",
+            )
+
+        org_id = request.department_id if request.department_id else request.state_center_id
+        plan_name = mdo_approval_record.plan_name
+        due_date = mdo_approval_record.due_date.date() if mdo_approval_record.due_date else date.today()
+
+        result = await self._publish_single_item(
+            item=item,
+            token=token,
+            org_id=org_id,
+            plan_name=plan_name,
+            due_date=due_date,
+        )
+
+        if result["status"] == "success":
+            await crud_mdo_approval_request.persist_retry_item_success(
+                db=db,
+                mdo_approval_id=mdo_approval_record.id,
+                item_id=item_id,
+                igot_cbp_plan_id=result["plan_id"],
+            )
+
+        return result
+
 
 mdo_approval_controller = MDOApprovalController()

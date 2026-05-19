@@ -21,6 +21,12 @@ class ApproveRequestBody(BaseModel):
     due_date: datetime = Field(..., description="Due date for plan completion")
 
 
+class RetryPublishItemBody(BaseModel):
+    """Request body for retrying publish of a single failed item"""
+    request_id: UUID = Field(..., description="ID of the approval request")
+    item_id: UUID = Field(..., description="ID of the failed item to retry")
+
+
 class RejectRequestBody(BaseModel):
     """Request body for rejecting designations"""
     request_id: UUID = Field(..., description="ID of the approval request")
