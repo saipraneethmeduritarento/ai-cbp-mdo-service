@@ -27,7 +27,7 @@ router = APIRouter(prefix="/designation", tags=["SPV Designation Approval"])
 async def list_designation_approvals(
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page"),
-    search: Optional[str] = Query(None, description="Search by designation name or email"),
+    search: Optional[str] = Query(None, description="Search by designation name, organisation, or email"),
     status_filter: Optional[str] = Query(None, description="Filter by status: pending, approved, rejected"),
     from_date: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
     to_date: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),

@@ -38,13 +38,18 @@ class CRUDDesignationApproval:
         """
         conditions = []
 
-        # Search across designation_name and email
+        # Search across designation_name, email, and organisation (role_mappings)
         if search:
             search_term = search.strip()
+            # Subquery to find rolemapping_ids matching organisation name
+            org_subquery = text(
+                "SELECT id FROM role_mappings WHERE state_center_name ILIKE :term"
+            ).bindparams(term=f"%{search_term}%").columns(id=PG_UUID)
             conditions.append(
                 or_(
                     DesignationApproval.designation_name.ilike(f"%{search_term}%"),
                     User.email.ilike(f"%{search_term}%"),
+                    DesignationApproval.rolemapping_id.in_(org_subquery),
                 )
             )
 
