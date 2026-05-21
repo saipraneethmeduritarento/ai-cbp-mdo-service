@@ -31,6 +31,7 @@ async def list_designation_approvals(
     status_filter: Optional[str] = Query(None, description="Filter by status: pending, approved, rejected"),
     from_date: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
     to_date: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
+    org_id: Optional[str] = Query(None, description="Filter by organisation ID (state_center_id or department_id)"),
     db: AsyncSession = Depends(get_db_session),
     auth: tuple = Depends(require_role(['SPV_ADMIN','MDO_ADMIN','MDO_LEADER'])),
 ):
@@ -47,6 +48,7 @@ async def list_designation_approvals(
             status_filter=status_filter,
             from_date=from_date,
             to_date=to_date,
+            org_id=org_id,
         )
 
         return PaginatedDesignationApprovalResponse(

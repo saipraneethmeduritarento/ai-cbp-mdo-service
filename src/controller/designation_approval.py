@@ -30,6 +30,7 @@ class DesignationApprovalController:
         status_filter: Optional[str] = None,
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> Tuple[List[DesignationApproval], int]:
         """
         List designation approvals with pagination and filters.
@@ -45,6 +46,7 @@ class DesignationApprovalController:
             status_filter=status_filter,
             from_date=from_date,
             to_date=to_date,
+            org_id=org_id,
         )
 
     async def approve(
