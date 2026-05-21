@@ -182,9 +182,6 @@ async def call_igot_create_designation(
 
     async with httpx.AsyncClient() as client:
         try:
-            print("Calling iGOT create designation API with payload:", payload)
-            print("Headers:", headers)
-            print("URL:", url)
             resp = await client.post(url, json=payload, headers=headers, timeout=30.0)
             resp.raise_for_status()
         except httpx.HTTPStatusError as e:
