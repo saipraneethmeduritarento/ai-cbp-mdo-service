@@ -63,36 +63,33 @@ class DesignationApprovalController:
         Approve a single designation approval request.
 
         Business Logic:
-          1. Lock and fetch the PENDING record
-          2. Validate state (PENDING only)
-          3. Stage status update to APPROVED (no commit yet)
-          4. Call iGOT designation master Create API
-             - On failure: rollback DB update, re-raise exception
-          5. Commit transaction only after iGOT succeeds
-          6. Send approval email notification (background)
+          1. Fetch the PENDING record (verify it exists)
+          2. Call iGOT designation master Create API
+             - On failure: return error (DB untouched)
+          3. On iGOT success: update DB status to APPROVED and commit
+          4. Send approval email notification (background)
 
         Returns:
             (True, message) if approved, (False, None) if not found or already processed
         """
         logger.info(f"Approving designation approval: {record_id}")
-        success, designation_name = await crud_designation_approval.approve(
-            db=db,
-            record_id=record_id,
-        )
 
-        if not success:
+        # Step 1: Verify record exists and is PENDING
+        record = await crud_designation_approval.get_pending(db=db, record_id=record_id)
+        if not record:
             logger.warning(f"Failed to approve designation approval: {record_id} (not found or already processed)")
             return False, None
 
-        # Call iGOT designation master Create API before committing to DB
+        designation_name = record.designation_name
+
+        # Step 2: Call iGOT designation master Create API first
         try:
             result = await call_igot_create_designation(
                 token=token,
                 designation=designation_name,
             )
         except Exception:
-            logger.exception(f"iGOT designation create failed for {record_id}; rolling back approval")
-            await db.rollback()
+            logger.exception(f"iGOT designation create failed for {record_id}")
             raise HTTPException(
                 status_code=502,
                 detail="Failed to create designation in iGOT master list. Please try again later.",
@@ -105,11 +102,15 @@ class DesignationApprovalController:
         else:
             message = "Successfully approved"
 
-        # iGOT succeeded — commit the approval now
-        await db.commit()
+        # Step 3: iGOT succeeded — now save approval to DB
+        success = await crud_designation_approval.approve(db=db, record_id=record_id)
+        if not success:
+            logger.warning(f"Failed to save approval for {record_id} (concurrent update)")
+            return False, None
+
         logger.info(f"Successfully approved designation approval: {record_id}")
 
-        # Send email notification in background
+        # Step 4: Send email notification in background
         background_tasks.add_task(
             self._send_approval_email, record_id, approver_name, approver_id
         )
