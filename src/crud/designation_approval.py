@@ -153,16 +153,17 @@ class CRUDDesignationApproval:
         self,
         db: AsyncSession,
         record_id: uuid.UUID,
-    ) -> bool:
+    ) -> Tuple[bool, Optional[str]]:
         """
         Approve a single designation approval by ID.
         Locks PENDING record, updates to APPROVED.
-        Returns True if approved, False if not found or already processed.
+        Returns (True, designation_name) if approved, (False, None) if not found or already processed.
         """
         record = await self._get_pending_for_update(db, record_id)
         if not record:
-            return False
+            return False, None
 
+        designation_name = record.designation_name
         now = datetime.now(timezone.utc)
         await db.execute(
             update(DesignationApproval)
@@ -172,8 +173,8 @@ class CRUDDesignationApproval:
                 updated_at=now,
             )
         )
-        await db.commit()
-        return True
+        # Caller is responsible for commit/rollback
+        return True, designation_name
 
     async def reject(
         self,

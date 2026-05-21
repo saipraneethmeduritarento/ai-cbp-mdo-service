@@ -81,11 +81,12 @@ async def approve_designation(
     try:
         user_id, token, approver_name, org = auth
 
-        success = await designation_approval_controller.approve(
+        success, message = await designation_approval_controller.approve(
             db=db,
             record_id=body.id,
             approver_name=approver_name,
             approver_id=user_id,
+            token=token,
             background_tasks=background_tasks,
         )
 
@@ -96,7 +97,7 @@ async def approve_designation(
             )
 
         return DesignationApprovalActionResponse(
-            message="Successfully approved",
+            message=message,
             status="approved",
             id=body.id,
         )
