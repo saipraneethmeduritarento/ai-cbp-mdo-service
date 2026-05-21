@@ -30,6 +30,7 @@ class CRUDDesignationApproval:
         status_filter: Optional[str] = None,
         from_date: Optional[str] = None,
         to_date: Optional[str] = None,
+        org_id: Optional[str] = None,
     ) -> Tuple[List[DesignationApproval], int]:
         """
         List designation approvals with pagination and filters.
@@ -37,19 +38,23 @@ class CRUDDesignationApproval:
         """
         conditions = []
 
-        # Search across designation_name, email, and organisation (role_mappings)
+        # Search across designation_name and email
         if search:
             search_term = search.strip()
-            # Subquery to find rolemapping_ids matching organisation name
-            org_subquery = text(
-                "SELECT id FROM role_mappings WHERE state_center_name ILIKE :term"
-            ).bindparams(term=f"%{search_term}%").columns(id=PG_UUID)
             conditions.append(
                 or_(
                     DesignationApproval.designation_name.ilike(f"%{search_term}%"),
                     User.email.ilike(f"%{search_term}%"),
-                    DesignationApproval.rolemapping_id.in_(org_subquery),
                 )
+            )
+
+        # Filter by org_id (matches either state_center_id or department_id in role_mappings)
+        if org_id:
+            org_subquery = text(
+                "SELECT id FROM role_mappings WHERE state_center_id = :org_id OR department_id = :org_id"
+            ).bindparams(org_id=org_id).columns(id=PG_UUID)
+            conditions.append(
+                DesignationApproval.rolemapping_id.in_(org_subquery)
             )
 
         if status_filter:
