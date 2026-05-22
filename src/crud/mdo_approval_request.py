@@ -36,7 +36,10 @@ class CRUDMDOApprovalRequest:
         List approval requests assigned to a specific MDO with pagination and filters.
         Returns (items, total_count).
         """
-        conditions = [ApprovalRequestRead.mdo_id == mdo_id]
+        conditions = [
+            ApprovalRequestRead.mdo_id == mdo_id,
+            ApprovalRequestRead.status != ApprovalStatus.DRAFT.value,
+        ]
 
         # Search: partial match on request_name
         if search:
