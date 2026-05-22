@@ -149,6 +149,27 @@ class CRUDDesignationApproval:
             result = await db.execute(stmt)
             return result.scalar_one_or_none()
 
+    async def get_pending(
+        self,
+        db: AsyncSession,
+        record_id: uuid.UUID,
+    ) -> Optional[DesignationApproval]:
+        """
+        Fetch a PENDING designation approval by ID (no lock, read-only check).
+        Returns the record if PENDING, None otherwise.
+        """
+        stmt = (
+            select(DesignationApproval)
+            .where(
+                and_(
+                    DesignationApproval.id == record_id,
+                    DesignationApproval.status == DesignationApprovalStatus.PENDING.value,
+                )
+            )
+        )
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def approve(
         self,
         db: AsyncSession,
@@ -156,7 +177,7 @@ class CRUDDesignationApproval:
     ) -> bool:
         """
         Approve a single designation approval by ID.
-        Locks PENDING record, updates to APPROVED.
+        Locks PENDING record, updates to APPROVED, and commits.
         Returns True if approved, False if not found or already processed.
         """
         record = await self._get_pending_for_update(db, record_id)
