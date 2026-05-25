@@ -76,6 +76,7 @@ class ApprovalRequestRead(Base):
         cascade="all, delete-orphan",
         lazy="selectin"
     )
+    user = relationship("User", lazy="selectin", foreign_keys=[user_id])
 
 
 class ApprovalRequestItemRead(Base):

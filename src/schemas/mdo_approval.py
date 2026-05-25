@@ -91,6 +91,15 @@ class UpdateItemBody(BaseModel):
     competencies: Optional[List[CompetencyItem]] = Field(None, description="Competencies list")
 
 # Response schemas
+class UserInfo(BaseModel):
+    """Schema for user info attached to approval requests"""
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: UUID
+    username: str
+    email: str
+
+
 class ApprovalRequestItemSchema(BaseModel):
     """Schema for individual approval request item (designation)"""
     model_config = ConfigDict(from_attributes=True)
@@ -138,6 +147,7 @@ class ApprovalRequestDetail(BaseModel):
     state_center_id: str
     department_id: Optional[str] = None
     user_id: UUID
+    user: Optional[UserInfo] = None
     rejected_at: Optional[datetime] = None
     reviewer_comments: Optional[str] = None
     items: List[ApprovalRequestItemSchema] = []
