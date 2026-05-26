@@ -5,6 +5,7 @@ Orchestrates CRUD operations and external service calls.
 import uuid
 from datetime import date, datetime, timezone
 from typing import Any, List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,9 @@ from ..models.mdo_approval import ApprovalRequestRead, ApprovalRequestItemRead
 from ..schemas.comman import ApprovalItemStatus
 from ..services.igot_service import call_igot_create, call_igot_publish, extract_content_ids
 from ..services.notification_service import notification_service
+
+IST = ZoneInfo("Asia/Kolkata")
+
 
 class MDOApprovalController:
     """
@@ -281,7 +285,7 @@ class MDOApprovalController:
                 logger.warning(f"Cannot send CBP status email: user email not found for request {request.id}")
                 return
 
-            action_date = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p")
+            action_date = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
             await notification_service.send_cbplan_status_email(
                 to_email=user.email,
                 cbp_name=cbp_name,

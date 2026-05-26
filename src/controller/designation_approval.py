@@ -5,6 +5,7 @@ Orchestrates CRUD operations and business logic.
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional, Tuple
+from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,7 @@ from ..models.designation_approval import DesignationApproval
 from ..services.igot_service import call_igot_create_designation
 from ..services.notification_service import notification_service
 
+IST = ZoneInfo("Asia/Kolkata")
 
 class DesignationApprovalController:
     """
@@ -129,7 +131,7 @@ class DesignationApprovalController:
                 logger.warning(f"Cannot send approval email: record or user email not found for {record_id}")
                 return
 
-            approval_date = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p")
+            approval_date = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
             await notification_service.send_designation_approved_email(
                 to_email=record.user.email,
                 designation_name=record.designation_name,
@@ -203,7 +205,7 @@ class DesignationApprovalController:
                 logger.warning(f"Cannot send rejection email: record or user email not found for {record_id}")
                 return
 
-            rejection_date = datetime.now(timezone.utc).strftime("%d %b %Y, %I:%M %p")
+            rejection_date = datetime.now(IST).strftime("%d %b %Y, %I:%M %p IST")
             await notification_service.send_designation_rejected_email(
                 to_email=record.user.email,
                 designation_name=record.designation_name,
