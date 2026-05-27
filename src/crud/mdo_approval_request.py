@@ -96,7 +96,10 @@ class CRUDMDOApprovalRequest:
         """
         stmt = (
             select(ApprovalRequestRead)
-            .options(selectinload(ApprovalRequestRead.items))
+            .options(
+                selectinload(ApprovalRequestRead.items),
+                selectinload(ApprovalRequestRead.user),
+            )
             .where(
                 and_(
                     ApprovalRequestRead.id == request_id,
