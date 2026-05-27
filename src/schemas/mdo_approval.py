@@ -125,6 +125,8 @@ class ApprovalRequestListItem(BaseModel):
     
     id: UUID
     request_name: str
+    user_id: UUID
+    user: Optional[UserInfo] = None
     created_at: datetime
     designation_count: int
     status: str

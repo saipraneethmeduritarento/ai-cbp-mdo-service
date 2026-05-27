@@ -70,7 +70,10 @@ class CRUDMDOApprovalRequest:
         offset = (page - 1) * page_size
         stmt = (
             select(ApprovalRequestRead)
-            .options(noload(ApprovalRequestRead.items))  # Don't load the items relationship
+            .options(
+                noload(ApprovalRequestRead.items),
+                selectinload(ApprovalRequestRead.user),
+            )
             .where(where_clause)
             .order_by(desc(ApprovalRequestRead.created_at))
             .offset(offset)
