@@ -132,6 +132,7 @@ class ApprovalRequestListItem(BaseModel):
     status: str
     state_center_name: str
     department_name: Optional[str] = None
+    reviewer_comments: Optional[str] = None
 
 
 class ApprovalRequestDetail(BaseModel):
