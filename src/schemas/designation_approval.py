@@ -33,6 +33,7 @@ class DesignationApprovalItem(BaseModel):
     division: Optional[str] = None       # mapped from wing_division_section
     email: Optional[str] = None          # from user.email
     status: str
+    reviewer_comments: Optional[str] = None
     created_at: datetime
 
     @classmethod
@@ -44,6 +45,7 @@ class DesignationApprovalItem(BaseModel):
             "division": obj.wing_division_section,
             "email": obj.user.email if obj.user else None,
             "status": obj.status,
+            "reviewer_comments": obj.reviewer_comments,
             "created_at": obj.created_at,
         }
         return cls(**data)
