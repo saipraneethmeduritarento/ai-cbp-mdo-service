@@ -38,7 +38,7 @@ router = APIRouter(
 async def get_approval_requests(
     page: int = Query(1, ge=1, description="Page number (starts from 1)"),
     page_size: int = Query(10, ge=1, le=100, description="Number of items per page"),
-    search: Optional[str] = Query(None, description="Search by request name or state/center name"),
+    search: Optional[str] = Query(None, description="Search across request name, request ID, state center, department, and requestor email"),
     status_filter: Optional[str] = Query(None, description="Filter by status (pending, approved, rejected)"),
     from_date: Optional[str] = Query(None, description="Filter from date (YYYY-MM-DD)"),
     to_date: Optional[str] = Query(None, description="Filter to date (YYYY-MM-DD)"),
@@ -46,8 +46,9 @@ async def get_approval_requests(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Get paginated list of approval requests for the MDO.
-    Supports search and filtering by status and date range.
+    Get paginated list of approval requests assigned to the MDO.
+    Search parameter searches across request name, request ID, state center name, department, and requestor email.
+    Supports filtering by status and date range.
     """
     mdo_id = auth[0]
     try:
@@ -84,7 +85,7 @@ async def get_approval_request_detail(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Get detailed view of a specific approval request with all items.
+    Get detailed view of a specific approval request including all designations and related data.
     """
     mdo_id = auth[0]
     try:
@@ -117,8 +118,9 @@ async def publish_request(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Approve all items in an approval request, create a CBP plan via the
-    external API, and persist the returned igot_cbp_plan_id against each MdoApproval row.
+    Approve and publish all items in an approval request.
+    Creates a CBP plan via the external iGOT API and persists the returned igot_cbp_plan_id.
+    Generates approval notifications for stakeholders.
     """
     mdo_id, token, approver_name, *_ = auth
     try:
@@ -167,7 +169,8 @@ async def retry_publish_item(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Retry publishing a single failed item from an already-approved request.
+    Retry publishing a single failed designation item from an already-approved request.
+    Used when a previous publish attempt failed for an individual item.
     """
     mdo_id, token, *_ = auth
     try:
@@ -198,7 +201,8 @@ async def reject_request(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Reject all items in an approval request.
+    Reject all designations in an approval request with comments.
+    Marks the entire request as rejected and notifies requestor.
     """
     mdo_id, token, rejector_name, *_ = auth
     try:
@@ -245,7 +249,8 @@ async def reject_approval_request_item(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Reject a specific item in an approval request with comments.
+    Reject a specific designation item in an approval request with comments.
+    Re-calculates parent request status based on remaining pending/approved/rejected items.
     """
     mdo_id = auth[0]
     try:
@@ -305,7 +310,8 @@ async def update_approval_request_item(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Update role mapping fields on a specific approval request item.
+    Update role mapping fields (designation name, competencies, etc.) on a pending designation item.
+    Can only update items in PENDING status before approval.
     """
     mdo_id = auth[0]
     try:
@@ -367,7 +373,8 @@ async def add_course_to_approval_request(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Add a course to an approval request.
+    Add courses from the iGOT knowledge base to a designation item's competency-based plan.
+    Searches iGOT and appends course details to the CBP plan data.
     """
     mdo_id = auth[0]
     try:
@@ -436,7 +443,8 @@ async def remove_course_from_approval_request(
     auth: tuple = Depends(require_role(['MDO_ADMIN','MDO_LEADER'])),
 ):
     """
-    Remove a course from an approval request item's cbp_plan_data.
+    Remove a course from a designation item's competency-based plan.
+    Removes the course by identifier from the CBP plan data.
     """
     mdo_id = auth[0]
     try:
