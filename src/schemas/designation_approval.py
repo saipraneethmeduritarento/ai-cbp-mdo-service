@@ -69,3 +69,4 @@ class DesignationApprovalActionResponse(BaseModel):
     message: str
     status: str
     id: UUID
+    designation_id: Optional[str] = None
