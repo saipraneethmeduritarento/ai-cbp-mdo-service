@@ -12,6 +12,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload, noload
 
 from ..models.mdo_approval import ApprovalRequestRead, ApprovalRequestItemRead, MdoApproval
+from ..models.user import User
 from ..schemas.comman import ApprovalStatus, ApprovalItemStatus
 from ..core.configs import settings
 
@@ -34,19 +35,43 @@ class CRUDMDOApprovalRequest:
     ) -> Tuple[List[ApprovalRequestRead], int]:
         """
         List approval requests assigned to a specific MDO with pagination and filters.
+        Search parameter searches across: request name, request ID, state center name, 
+        department name, and requestor email.
         Returns (items, total_count).
         """
+        from sqlalchemy import or_
+        
         conditions = [
             ApprovalRequestRead.mdo_id == mdo_id,
             ApprovalRequestRead.status != ApprovalStatus.DRAFT.value,
         ]
 
-        # Search: partial match on request_name
+        # Search: partial match across multiple fields
         if search:
             search_term = search.strip()
-            conditions.append(
-                ApprovalRequestRead.request_name.ilike(f"%{search_term}%")
+            search_conditions = [
+                ApprovalRequestRead.request_name.ilike(f"%{search_term}%"),
+                ApprovalRequestRead.state_center_name.ilike(f"%{search_term}%"),
+            ]
+            
+            # Try to match request ID if search term looks like a UUID
+            try:
+                search_uuid = uuid.UUID(search_term)
+                search_conditions.append(ApprovalRequestRead.id == search_uuid)
+            except (ValueError, AttributeError):
+                pass
+            
+            # Include department name if not null
+            search_conditions.append(
+                ApprovalRequestRead.department_name.ilike(f"%{search_term}%")
             )
+            
+            # Include requestor email via user relationship
+            search_conditions.append(
+                ApprovalRequestRead.user.has(User.email.ilike(f"%{search_term}%"))
+            )
+            
+            conditions.append(or_(*search_conditions))
 
         # Status filter
         if status_filter:
