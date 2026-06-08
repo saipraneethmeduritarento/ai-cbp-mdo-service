@@ -77,11 +77,12 @@ async def approve_designation(
     """
     Approve a single designation approval request.
     Only PENDING records will be updated.
+    Returns the created designation ID from iGOT.
     """
     try:
         user_id, token, approver_name, org = auth
 
-        success, message = await designation_approval_controller.approve(
+        success, message, designation_id = await designation_approval_controller.approve(
             db=db,
             record_id=body.id,
             approver_name=approver_name,
@@ -100,6 +101,7 @@ async def approve_designation(
             message=message,
             status="approved",
             id=body.id,
+            designation_id=designation_id,
         )
 
     except HTTPException:

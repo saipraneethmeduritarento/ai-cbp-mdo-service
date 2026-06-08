@@ -60,7 +60,7 @@ class DesignationApprovalController:
         approver_id: str,
         token: str,
         background_tasks: BackgroundTasks,
-    ) -> Tuple[bool, Optional[str]]:
+    ) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         Approve a single designation approval request.
 
@@ -72,7 +72,7 @@ class DesignationApprovalController:
           4. Send approval email notification (background)
 
         Returns:
-            (True, message) if approved, (False, None) if not found or already processed
+            (True, message, designation_id) if approved, (False, None, None) if not found or already processed
         """
         logger.info(f"Approving designation approval: {record_id}")
 
@@ -80,7 +80,7 @@ class DesignationApprovalController:
         record = await crud_designation_approval.get_pending(db=db, record_id=record_id)
         if not record:
             logger.warning(f"Failed to approve designation approval: {record_id} (not found or already processed)")
-            return False, None
+            return False, None, None
 
         designation_name = record.designation_name
 
@@ -97,6 +97,9 @@ class DesignationApprovalController:
                 detail="Failed to create designation in iGOT master list. Please try again later.",
             )
 
+        # Extract designation ID from nested iGOT response: result.result.id
+        designation_id = result.get("result", {}).get("id")
+
         # Determine response message
         if result.get("already_present"):
             logger.info(f"Designation '{designation_name}' already present in iGOT master list for {record_id}")
@@ -108,15 +111,15 @@ class DesignationApprovalController:
         success = await crud_designation_approval.approve(db=db, record_id=record_id)
         if not success:
             logger.warning(f"Failed to save approval for {record_id} (concurrent update)")
-            return False, None
+            return False, None, None
 
-        logger.info(f"Successfully approved designation approval: {record_id}")
+        logger.info(f"Successfully approved designation approval: {record_id} with iGOT ID: {designation_id}")
 
         # Step 4: Send email notification in background
         background_tasks.add_task(
             self._send_approval_email, record_id, approver_name, approver_id
         )
-        return True, message
+        return True, message, designation_id
 
     async def _send_approval_email(
         self,
