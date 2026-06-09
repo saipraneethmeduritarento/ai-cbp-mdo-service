@@ -6,6 +6,7 @@ from .core.database import Base, sessionmanager
 from .api import router
 from .core.configs import EnvironmentOption, settings
 from .core.logger import logger
+from .core.middleware import APILoggingMiddleware
 
 # Import all models to ensure they're registered with SQLAlchemy
 from .models import mdo_approval
@@ -54,5 +55,7 @@ app.add_middleware(
     allow_methods=["*"],      # Allow all HTTP methods
     allow_headers=["*"],      # Allow all headers
 )
+
+app.add_middleware(APILoggingMiddleware)
 
 app.include_router(router)
