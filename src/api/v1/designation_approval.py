@@ -80,6 +80,7 @@ async def approve_designation(
     Returns the created designation ID from iGOT.
     """
     try:
+        logger.info(f"Approving designation approval request {body.id} by user {auth[0]}")
         user_id, token, approver_name, org = auth
 
         success, message, designation_id = await designation_approval_controller.approve(
@@ -127,6 +128,7 @@ async def reject_designation(
     """
     try:
         user_id, token, rejector_name, org = auth
+        logger.info(f"Rejecting designation approval request {body.id} by user {user_id} with comment '{body.reviewer_comments}'")
 
         success = await designation_approval_controller.reject(
             db=db,
