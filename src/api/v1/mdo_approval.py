@@ -124,6 +124,7 @@ async def publish_request(
     """
     mdo_id, token, approver_name, *_ = auth
     try:
+        logger.info(f"Publishing approval request {body.request_id} by MDO {mdo_id} with plan name '{body.plan_name}'")
         item_results = await mdo_approval_controller.publish(
             db=db,
             request_id=body.request_id,
@@ -174,6 +175,7 @@ async def retry_publish_item(
     """
     mdo_id, token, *_ = auth
     try:
+        logger.info(f"Retrying publish for item {body.item_id} in request {body.request_id} by MDO {mdo_id}")
         result = await mdo_approval_controller.retry_publish_item(
             db=db,
             request_id=body.request_id,
@@ -206,6 +208,7 @@ async def reject_request(
     """
     mdo_id, token, rejector_name, *_ = auth
     try:
+        logger.info(f"Rejecting approval request {body.request_id} by MDO {mdo_id} with comment '{body.rejection_comment}'")
         updated_request, items_count = await mdo_approval_controller.reject_request(
             db=db,
             request_id=body.request_id,
@@ -254,6 +257,7 @@ async def reject_approval_request_item(
     """
     mdo_id = auth[0]
     try:
+        logger.info(f"Rejecting item {body.item_id} from request {body.request_id} by MDO {mdo_id} with comment '{body.rejection_comment}'")
         result, error = await mdo_approval_controller.reject_single_item(
             db=db,
             request_id=body.request_id,
@@ -315,6 +319,7 @@ async def update_approval_request_item(
     """
     mdo_id = auth[0]
     try:
+        logger.info(f"Updating item {body.item_id} in request {body.request_id} by MDO {mdo_id} with data {body.dict(exclude_unset=True)}")
         update_data = body.model_dump(exclude={"request_id", "item_id"}, exclude_unset=True)
         result, error = await mdo_approval_controller.update_item(
             db=db,
@@ -378,6 +383,7 @@ async def add_course_to_approval_request(
     """
     mdo_id = auth[0]
     try:
+        logger.info(f"Adding courses {body.identifiers} to item {body.item_id} in request {body.request_id} by MDO {mdo_id}")
         result, error = await mdo_approval_controller.add_course_to_item(
             db=db,
             request_id=body.request_id,
@@ -448,6 +454,7 @@ async def remove_course_from_approval_request(
     """
     mdo_id = auth[0]
     try:
+        logger.info(f"Removing course {body.identifier} from item {body.item_id} in request {body.request_id} by MDO {mdo_id}")
         result, error = await mdo_approval_controller.remove_course_from_item(
             db=db,
             request_id=body.request_id,
