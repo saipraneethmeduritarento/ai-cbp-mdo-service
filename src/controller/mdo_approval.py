@@ -222,6 +222,7 @@ class MDOApprovalController:
             mdo_id=mdo_id,
             plan_name=plan_name,
             due_date=due_date,
+            plan_year=plan_year,
             item_results=item_results,
         )
 
@@ -398,12 +399,10 @@ class MDOApprovalController:
         item_id: uuid.UUID,
         mdo_id: str,
         token: str,
-        plan_year: str,
     ) -> dict:
         """
         Retry publishing a single failed item from an already-approved request.
-        Reads plan_name and due_date from the existing MdoApproval record;
-        plan_year comes from the retry request.
+        Reads plan_name, due_date and plan_year from the existing MdoApproval record.
 
         Returns a result dict with item_id, designation_name, status, plan_id, and error.
         """
@@ -433,6 +432,13 @@ class MDOApprovalController:
                 detail="Approval request not found.",
             )
 
+        # Records persisted before plan_year was stored have no year to retry with
+        if not mdo_approval_record.plan_year:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Plan year is not recorded for this approval. Item cannot be retried.",
+            )
+
         org_id = request.department_id if request.department_id else request.state_center_id
         plan_name = mdo_approval_record.plan_name
         due_date = mdo_approval_record.due_date.date() if mdo_approval_record.due_date else date.today()
@@ -443,7 +449,7 @@ class MDOApprovalController:
             org_id=org_id,
             plan_name=plan_name,
             due_date=due_date,
-            plan_year=plan_year,
+            plan_year=mdo_approval_record.plan_year,
         )
 
         if result["status"] == "success":

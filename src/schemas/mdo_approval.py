@@ -46,17 +46,6 @@ class RetryPublishItemBody(BaseModel):
     """Request body for retrying publish of a single failed item"""
     request_id: UUID = Field(..., description="ID of the approval request")
     item_id: UUID = Field(..., description="ID of the failed item to retry")
-    plan_year: str = Field(
-        ...,
-        pattern=PLAN_YEAR_PATTERN,
-        description="Financial year of the CBP plan in YYYY-YY format",
-        examples=["2026-27"],
-    )
-
-    @field_validator('plan_year')
-    @classmethod
-    def validate_plan_year(cls, v: str) -> str:
-        return _validate_plan_year(v)
 
 
 class RejectRequestBody(BaseModel):

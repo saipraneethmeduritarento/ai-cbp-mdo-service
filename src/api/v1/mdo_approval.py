@@ -184,7 +184,6 @@ async def retry_publish_item(
             item_id=body.item_id,
             mdo_id=mdo_id,
             token=token,
-            plan_year=body.plan_year,
         )
 
         return ItemPublishResult(**result)
