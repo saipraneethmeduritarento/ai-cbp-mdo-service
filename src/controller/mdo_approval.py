@@ -70,6 +70,7 @@ class MDOApprovalController:
         org_id: str,
         plan_name: str,
         due_date: date,
+        plan_year: str,
     ) -> dict:
         """
         Attempt to create and publish a CBP plan for a single item.
@@ -103,6 +104,7 @@ class MDOApprovalController:
                 due_date=due_date,
                 designations=[designation],
                 content_ids=content_ids,
+                plan_year=plan_year,
                 is_apar=False,
             )
 
@@ -147,6 +149,7 @@ class MDOApprovalController:
         mdo_id: str,
         plan_name: str,
         due_date: date,
+        plan_year: str,
         token: str,
         approver_name: str = "",
         approver_id: str = "",
@@ -191,6 +194,7 @@ class MDOApprovalController:
                 org_id=org_id,
                 plan_name=plan_name,
                 due_date=due_date,
+                plan_year=plan_year,
             )
             item_results.append(result)
 
@@ -394,10 +398,12 @@ class MDOApprovalController:
         item_id: uuid.UUID,
         mdo_id: str,
         token: str,
+        plan_year: str,
     ) -> dict:
         """
         Retry publishing a single failed item from an already-approved request.
-        Reads plan_name and due_date from the existing MdoApproval record.
+        Reads plan_name and due_date from the existing MdoApproval record;
+        plan_year comes from the retry request.
 
         Returns a result dict with item_id, designation_name, status, plan_id, and error.
         """
@@ -437,6 +443,7 @@ class MDOApprovalController:
             org_id=org_id,
             plan_name=plan_name,
             due_date=due_date,
+            plan_year=plan_year,
         )
 
         if result["status"] == "success":
