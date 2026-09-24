@@ -441,7 +441,7 @@ class MDOApprovalController:
 
         org_id = request.department_id if request.department_id else request.state_center_id
         plan_name = mdo_approval_record.plan_name
-        due_date = mdo_approval_record.due_date.date() if mdo_approval_record.due_date else date.today()
+        due_date = mdo_approval_record.due_date.date()
 
         result = await self._publish_single_item(
             item=item,
